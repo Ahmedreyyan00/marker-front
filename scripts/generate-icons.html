@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Icon Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>PWA Icon Generator</h1>
+    <p>Generate 192x192 and 512x512 icons for the PWA. Click the buttons below to download.</p>
+    
+    <div>
+        <canvas id="icon192" width="192" height="192"></canvas>
+        <canvas id="icon512" width="512" height="512"></canvas>
+    </div>
+    
+    <div>
+        <button onclick="downloadIcon(192)">Download icon-192.png</button>
+        <button onclick="downloadIcon(512)">Download icon-512.png</button>
+    </div>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            
+            // Background
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, size, size);
+            
+            // Draw a simple map marker icon
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const markerSize = size * 0.6;
+            
+            // Marker shape (teardrop)
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY - markerSize * 0.3);
+            ctx.arc(centerX, centerY - markerSize * 0.3, markerSize * 0.4, Math.PI, 0, false);
+            ctx.lineTo(centerX, centerY + markerSize * 0.5);
+            ctx.closePath();
+            ctx.fillStyle = '#22c55e'; // Green color
+            ctx.fill();
+            
+            // White circle in center
+            ctx.beginPath();
+            ctx.arc(centerX, centerY - markerSize * 0.1, markerSize * 0.15, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+        }
+        
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`icon${size}`);
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `icon-${size}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+        
+        // Draw icons on load
+        window.onload = function() {
+            drawIcon(document.getElementById('icon192'), 192);
+            drawIcon(document.getElementById('icon512'), 512);
+        };
+    </script>
+</body>
+</html>
+
