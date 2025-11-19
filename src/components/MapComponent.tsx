@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
-import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { useCallback, useMemo, useState, useEffect } from 'react';
+import { GoogleMap, Marker, useJsApiLoader, InfoWindow } from '@react-google-maps/api';
 
 // Khmelnytskyi coordinates
 const KHMELNYTSKYI_CENTER = { lat: 49.4229, lng: 26.9871 };
+
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
 interface MarkerData {
   id: string;
@@ -14,6 +16,26 @@ interface MarkerData {
   timestamp: number;
   lastActionTimestamp?: number;
   confirmationCount?: number;
+}
+
+interface MarkerDetails {
+  id: string;
+  latitude: number;
+  longitude: number;
+  status: 'green' | 'red' | 'orange';
+  timestamp: number;
+  lastActionTimestamp: number;
+  redPressCount: number;
+  greenPressCount: number;
+  confirmationCount: number;
+  latestEvent?: {
+    userEmail: string;
+    userName?: string;
+    voteType: 'red' | 'green';
+    markerState: 'green' | 'red' | 'orange';
+    distance: number;
+    timestamp: string | Date;
+  };
 }
 
 interface MapComponentProps {
@@ -38,6 +60,9 @@ const libraries: ('places' | 'drawing' | 'geometry' | 'visualization')[] = ['geo
 export default function MapComponent({ userLocation, markers }: MapComponentProps) {
   const [map, setMap] = useState<any>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
+  const [markerDetails, setMarkerDetails] = useState<MarkerDetails | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Memoize loader options to prevent recreation on hot reload
   const loaderOptions = useMemo(() => ({
@@ -69,6 +94,41 @@ export default function MapComponent({ userLocation, markers }: MapComponentProp
     setMap(null);
   }, []);
 
+  // Fetch marker details when a marker is clicked
+  const handleMarkerClick = useCallback(async (markerId: string) => {
+    if (selectedMarker === markerId) {
+      // If clicking the same marker, close the popup
+      setSelectedMarker(null);
+      setMarkerDetails(null);
+      return;
+    }
+
+    setSelectedMarker(markerId);
+    setLoadingDetails(true);
+
+    try {
+      const response = await fetch(`${backendUrl}/api/markers/${markerId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMarkerDetails(data);
+      } else {
+        console.error('Failed to fetch marker details');
+        setMarkerDetails(null);
+      }
+    } catch (error) {
+      console.error('Error fetching marker details:', error);
+      setMarkerDetails(null);
+    } finally {
+      setLoadingDetails(false);
+    }
+  }, [selectedMarker]);
+
+  // Close popup when clicking on the map
+  const handleMapClick = useCallback(() => {
+    setSelectedMarker(null);
+    setMarkerDetails(null);
+  }, []);
+
   // Custom marker icons - simple colored circles
   const createMarkerIcon = useCallback((color: string, size: number = 20) => {
     if (!isLoaded || typeof google === 'undefined') return undefined;
@@ -97,8 +157,8 @@ export default function MapComponent({ userLocation, markers }: MapComponentProp
   const blueIcon = createMarkerIcon('#3b82f6', 16);
 
   // Format timestamp for display
-  const formatTimestamp = (timestamp: number) => {
-    const date = new Date(timestamp);
+  const formatTimestamp = (timestamp: number | string | Date) => {
+    const date = typeof timestamp === 'number' ? new Date(timestamp) : new Date(timestamp);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -109,7 +169,13 @@ export default function MapComponent({ userLocation, markers }: MapComponentProp
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString('en-US');
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const getMarkerTitle = (marker: MarkerData) => {
@@ -143,6 +209,7 @@ export default function MapComponent({ userLocation, markers }: MapComponentProp
         zoom={13}
         onLoad={onLoad}
         onUnmount={onUnmount}
+        onClick={handleMapClick}
         options={{
           zoomControl: true,
           streetViewControl: false,
@@ -166,7 +233,85 @@ export default function MapComponent({ userLocation, markers }: MapComponentProp
             position={{ lat: marker.latitude, lng: marker.longitude }}
             icon={getMarkerIconByStatus(marker.status)}
             title={getMarkerTitle(marker)}
-          />
+            onClick={() => handleMarkerClick(marker.id)}
+          >
+            {selectedMarker === marker.id && markerDetails && (
+              <InfoWindow
+                onCloseClick={() => {
+                  setSelectedMarker(null);
+                  setMarkerDetails(null);
+                }}
+                position={{ lat: marker.latitude, lng: marker.longitude }}
+              >
+                <div className="p-2 min-w-[200px] max-w-[300px]">
+                  {loadingDetails ? (
+                    <div className="text-center py-2">
+                      <p className="text-sm text-gray-600">Loading...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`w-4 h-4 rounded-full ${
+                            markerDetails.status === 'green' ? 'bg-green-500' :
+                            markerDetails.status === 'red' ? 'bg-red-500' :
+                            'bg-orange-500'
+                          }`}></div>
+                          <h3 className="font-bold text-lg capitalize">
+                            {markerDetails.status} Marker
+                          </h3>
+                        </div>
+                        {markerDetails.status === 'orange' && markerDetails.confirmationCount > 0 && (
+                          <p className="text-sm text-gray-600">
+                            Confirmations: {markerDetails.confirmationCount}/10
+                          </p>
+                        )}
+                      </div>
+
+                      {markerDetails.latestEvent && (
+                        <div className="border-t pt-3 mt-3">
+                          <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                            Latest Event
+                          </p>
+                          <div className="space-y-1 text-sm">
+                            <p>
+                              <span className="font-medium">User:</span>{' '}
+                              {markerDetails.latestEvent.userName || markerDetails.latestEvent.userEmail}
+                            </p>
+                            <p>
+                              <span className="font-medium">Action:</span>{' '}
+                              <span className="capitalize">{markerDetails.latestEvent.voteType}</span> button
+                              {markerDetails.latestEvent.markerState !== markerDetails.status && (
+                                <span className="text-gray-600">
+                                  {' '}(was {markerDetails.latestEvent.markerState})
+                                </span>
+                              )}
+                            </p>
+                            <p>
+                              <span className="font-medium">Distance:</span>{' '}
+                              {markerDetails.latestEvent.distance.toFixed(0)}m
+                            </p>
+                            <p>
+                              <span className="font-medium">Time:</span>{' '}
+                              {formatTimestamp(markerDetails.latestEvent.timestamp)}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="border-t pt-2 mt-2 text-xs text-gray-500">
+                        <p>Created: {formatTimestamp(markerDetails.timestamp)}</p>
+                        <p>Last action: {formatTimestamp(markerDetails.lastActionTimestamp)}</p>
+                        <p className="mt-1">
+                          Interactions: {markerDetails.redPressCount + markerDetails.greenPressCount}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </InfoWindow>
+            )}
+          </Marker>
         ))}
       </GoogleMap>
     </div>
