@@ -31,8 +31,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [testMode, setTestMode] = useState(process.env.NODE_ENV === 'development');
-  const [testLocation, setTestLocation] = useState<[number, number] | null>(null);
+  // Test mode - commented out for production
+  // const [testMode, setTestMode] = useState(process.env.NODE_ENV === 'development');
+  // const [testLocation, setTestLocation] = useState<[number, number] | null>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -50,12 +51,12 @@ export default function Home() {
   useEffect(() => {
     if (!isMounted) return;
     
-    // If test mode and test location is set, use it
-    if (testMode && testLocation) {
-      setUserLocation(testLocation);
-      setLoading(false);
-      return;
-    }
+    // Test mode - commented out for production
+    // if (testMode && testLocation) {
+    //   setUserLocation(testLocation);
+    //   setLoading(false);
+    //   return;
+    // }
     
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -78,7 +79,7 @@ export default function Home() {
       setError('Geolocation is not supported by your browser');
       setLoading(false);
     }
-  }, [isMounted, testMode, testLocation]);
+  }, [isMounted]); // testMode, testLocation removed
 
   // Fetch markers on mount and set up polling
   useEffect(() => {
@@ -232,8 +233,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* Test Mode */}
-      {testMode && (
+      {/* Test Mode - Commented out for production */}
+      {/* {testMode && (
         <div className="absolute top-20 right-4 z-50 bg-white bg-opacity-90 p-4 rounded shadow-lg max-h-96 overflow-y-auto">
           <h3 className="font-bold mb-2">🧪 Test Mode</h3>
           <div className="space-y-2">
@@ -275,7 +276,7 @@ export default function Home() {
             </button>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }
