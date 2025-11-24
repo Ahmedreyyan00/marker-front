@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import backendUrl from '@/lib/backendUrl';
 
 // Dynamically import MapComponent to avoid SSR issues
 const MapComponent = dynamic(() => import('@/components/MapComponent'), {
@@ -20,8 +21,6 @@ interface MarkerData {
   lastActionTimestamp?: number;
   confirmationCount?: number;
 }
-
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
 export default function Home() {
   const { data: session, status } = useSession();

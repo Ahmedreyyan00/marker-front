@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, Fragment, useMemo, useRef } from 'react';
 import { GoogleMap, Marker, useJsApiLoader, InfoWindow } from '@react-google-maps/api';
+import backendUrl from '@/lib/backendUrl';
 
 // ============================================================================
 // CONSTANTS - Simple values that don't change
@@ -9,7 +10,6 @@ import { GoogleMap, Marker, useJsApiLoader, InfoWindow } from '@react-google-map
 const DEFAULT_CENTER = { lat: 49.4229, lng: 26.9871 };
 const MAP_ZOOM = 13;
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
 // ============================================================================
 // TYPES - What data looks like
@@ -148,7 +148,7 @@ export default function MapComponent({ userLocation, markers }: MapComponentProp
     setIsLoadingDetails(true);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/markers/${markerId}`);
+      const response = await fetch(`${backendUrl}/api/markers/${markerId}`);
       if (response.ok) {
         const data = await response.json();
         setMarkerDetails(data);

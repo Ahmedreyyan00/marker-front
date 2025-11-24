@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+import backendUrl from '@/lib/backendUrl';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
