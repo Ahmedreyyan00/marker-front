@@ -87,10 +87,13 @@ export default function Home() {
     
     const fetchMarkers = async () => {
       try {
-        const response = await fetch(`${backendUrl}/api/markers`);
+        const response = await fetch(`${backendUrl}/api/markers`, {
+          cache: 'no-store', // Ensure we get fresh data
+        });
         if (response.ok) {
           const data = await response.json();
-          setMarkers(data);
+          // Create a new array reference to ensure React detects the change
+          setMarkers([...data]);
         }
       } catch (err) {
         console.error('Error fetching markers:', err);
@@ -148,11 +151,19 @@ export default function Home() {
       const data = await response.json();
 
       if (response.ok) {
+        // Small delay to ensure backend has saved the marker
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Refresh markers immediately to show updates
-        const markersResponse = await fetch(`${backendUrl}/api/markers`);
+        const markersResponse = await fetch(`${backendUrl}/api/markers`, {
+          cache: 'no-store', // Ensure we get fresh data
+        });
         if (markersResponse.ok) {
           const markersData = await markersResponse.json();
-          setMarkers(markersData);
+          // Create a new array reference to ensure React detects the change
+          setMarkers([...markersData]);
+        } else {
+          console.error('Failed to refresh markers after update');
         }
       } else {
         console.error('Error processing marker:', data);
@@ -178,105 +189,72 @@ export default function Home() {
     <div className="relative w-full h-screen overflow-hidden">
       {/* Map */}
       <div className="absolute inset-0">
-        <MapComponent userLocation={userLocation} markers={markers} />
+        <MapComponent 
+          userLocation={userLocation} 
+          markers={markers} 
+        />
       </div>
 
       {/* Loading overlay */}
       {loading && (
-        <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-white/95 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="text-center">
-            <p className="text-lg mb-2">Loading...</p>
-            <p className="text-sm text-gray-600">Getting location permission</p>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-lg font-semibold text-gray-900 mb-2">Loading Map</p>
+            <p className="text-sm text-gray-600">Getting your location...</p>
           </div>
         </div>
       )}
 
       {/* Error message */}
       {error && !loading && (
-        <div className="absolute top-4 left-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
-          <p className="text-sm">{error}</p>
+        <div className="absolute top-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-auto sm:max-w-md bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-r-lg shadow-lg z-50">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <p className="text-sm font-medium">{error}</p>
+          </div>
         </div>
       )}
 
       {/* Action buttons */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 flex gap-4 z-40">
-        <button
-          onClick={() => handleButtonClick('green')}
-          className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-6 px-8 rounded-lg text-xl shadow-lg active:scale-95 transition-all"
-          disabled={loading || !userLocation}
-        >
-          GREEN
-        </button>
-        <button
-          onClick={() => handleButtonClick('red')}
-          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-6 px-8 rounded-lg text-xl shadow-lg active:scale-95 transition-all"
-          disabled={loading || !userLocation}
-        >
-          RED
-        </button>
+      <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 flex gap-3 sm:gap-4 z-40 justify-center">
+        <div className="flex gap-3 sm:gap-4 w-full max-w-md">
+          <button
+            onClick={() => handleButtonClick('green')}
+            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-4 sm:py-5 md:py-6 px-4 sm:px-6 md:px-8 rounded-xl text-base sm:text-lg md:text-xl shadow-lg hover:shadow-xl active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || !userLocation}
+          >
+            GREEN
+          </button>
+          <button
+            onClick={() => handleButtonClick('red')}
+            className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-4 sm:py-5 md:py-6 px-4 sm:px-6 md:px-8 rounded-xl text-base sm:text-lg md:text-xl shadow-lg hover:shadow-xl active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || !userLocation}
+          >
+            RED
+          </button>
+        </div>
       </div>
 
       {/* User info and logout */}
       {session && (
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-4">
-          <span className="bg-white bg-opacity-90 px-3 py-1 rounded text-sm text-gray-700">
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2 sm:gap-3">
+          <span className="bg-white/95 backdrop-blur-sm px-3 py-2 rounded-lg text-xs sm:text-sm text-gray-700 shadow-md border border-gray-200">
             {session.user?.email}
           </span>
           <button
             onClick={() => {
               import('next-auth/react').then(({ signOut }) => signOut({ callbackUrl: '/login' }));
             }}
-            className="bg-white bg-opacity-90 px-3 py-1 rounded text-sm text-gray-700 hover:bg-opacity-100"
+            className="bg-white/95 backdrop-blur-sm px-3 py-2 rounded-lg text-xs sm:text-sm text-gray-700 hover:bg-white shadow-md border border-gray-200 transition-all font-medium"
           >
             Logout
           </button>
         </div>
       )}
 
-      {/* Test Mode - Commented out for production */}
-      {/* {testMode && (
-        <div className="absolute top-20 right-4 z-50 bg-white bg-opacity-90 p-4 rounded shadow-lg max-h-96 overflow-y-auto">
-          <h3 className="font-bold mb-2">🧪 Test Mode</h3>
-          <div className="space-y-2">
-            <button
-              onClick={() => setTestLocation([49.4229, 26.9871])}
-              className="block w-full text-left px-2 py-1 bg-blue-100 rounded text-sm hover:bg-blue-200"
-            >
-              Location 1 (Center)
-            </button>
-            <button
-              onClick={() => setTestLocation([49.4240, 26.9885])}
-              className="block w-full text-left px-2 py-1 bg-blue-100 rounded text-sm hover:bg-blue-200"
-            >
-              Location 2 (150m NE)
-            </button>
-            <button
-              onClick={() => setTestLocation([49.4218, 26.9857])}
-              className="block w-full text-left px-2 py-1 bg-blue-100 rounded text-sm hover:bg-blue-200"
-            >
-              Location 3 (150m SW)
-            </button>
-            <button
-              onClick={() => setTestLocation([49.4235, 26.9895])}
-              className="block w-full text-left px-2 py-1 bg-blue-100 rounded text-sm hover:bg-blue-200"
-            >
-              Location 4 (200m NE)
-            </button>
-            <button
-              onClick={() => {
-                setTestLocation(null);
-                // Reload real location
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude])
-                );
-              }}
-              className="block w-full text-left px-2 py-1 bg-gray-100 rounded text-sm hover:bg-gray-200"
-            >
-              Use Real Location
-            </button>
-          </div>
-        </div>
-      )} */}
     </div>
   );
 }
